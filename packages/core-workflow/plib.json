@@ -1,0 +1,24 @@
+{
+  "name": "core-workflow",
+  "version": "1.0.0",
+  "description": "Main development lifecycle - ideation, project setup, feature planning, execution, testing, documentation, and shipping",
+  "commands": [
+    "explore.md",
+    "create-plan.md",
+    "execute.md",
+    "unit-test.md",
+    "document.md",
+    "ship.md",
+    "start-feature.md",
+    "initiate-project.md",
+    "ideate.md"
+  ],
+  "rules": "rules.md",
+  "templates": [
+    "CLAUDE.md",
+    "docs/architecture.md",
+    "docs/backlog.md",
+    "docs/engineering-guidelines.md",
+    "docs/product-design.md"
+  ]
+}

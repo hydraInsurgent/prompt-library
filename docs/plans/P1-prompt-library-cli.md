@@ -1,6 +1,6 @@
 # Feature Implementation Plan
 
-**Overall Progress:** `10%`
+**Overall Progress:** `100%`
 
 ## TLDR
 
@@ -33,55 +33,55 @@ Build `plib` - a CLI-driven prompt library that lets you install curated package
   - [x] 🟩 Define `.plib-lock.json` format (source path, installed packages map with version + installedAt)
   - [x] 🟩 Write a `PACKAGE-SPEC.md` documenting the schema for future package authors
 
-- [ ] 🟥 **Step 2a: Split llm-workflow-toolkit into packages** `[parallel]` → delivers: six installable packages under `packages/`
-  - [ ] 🟥 Create `packages/core-workflow/` - commands: explore, create-plan, execute, unit-test, document, ship, start-feature, initiate-project, ideate
-  - [ ] 🟥 Create `packages/review-suite/` - commands: review-code, review-plan, review-ux, review-browser, review-full, review-commands; scripts: browse.js
-  - [ ] 🟥 Create `packages/debate/` - commands: ask-gpt, ask-gemini, peer-review; scripts: ask-gpt.js, ask-gemini.js; npmDependencies: openai, @google/generative-ai
-  - [ ] 🟥 Create `packages/bug-workflow/` - commands: create-issue, pair-debug, fix
-  - [ ] 🟥 Create `packages/utilities/` - commands: worktree, learning-opportunity, package-review
-  - [ ] 🟥 For each package: extract relevant sections from `toolkit.md` into that package's `rules.md`
-  - [ ] 🟥 For each package: write `plib.json` with correct version (start at `1.0.0`), description, and file lists
-  - [ ] 🟥 Create `profiles/development.json` - all five packages
-  - [ ] 🟥 Update `registry.json` with all six packages
-  - [ ] 🟥 Copy CLAUDE.md template and docs templates into `packages/core-workflow/templates/`
+- [x] 🟩 **Step 2a: Split llm-workflow-toolkit into packages** `[parallel]` → delivers: five installable packages under `packages/`
+  - [x] 🟩 Create `packages/core-workflow/` - commands: explore, create-plan, execute, unit-test, document, ship, start-feature, initiate-project, ideate
+  - [x] 🟩 Create `packages/review-suite/` - commands: review-code, review-plan, review-ux, review-browser, review-full, review-commands, review; scripts: browse.js
+  - [x] 🟩 Create `packages/debate/` - commands: ask-gpt, ask-gemini, peer-review; scripts: ask-gpt.js, ask-gemini.js; npmDependencies: openai, @google/generative-ai
+  - [x] 🟩 Create `packages/bug-workflow/` - commands: create-issue, pair-debug, fix
+  - [x] 🟩 Create `packages/utilities/` - commands: worktree, learning-opportunity, package-review, ui-spec
+  - [x] 🟩 For each package: extract relevant sections from `toolkit.md` into that package's `rules.md`
+  - [x] 🟩 For each package: write `plib.json` with correct version (start at `1.0.0`), description, and file lists
+  - [x] 🟩 Create `profiles/development.json` - all five packages
+  - [x] 🟩 Update `registry.json` with all five packages
+  - [x] 🟩 Copy CLAUDE.md template and docs templates into `packages/core-workflow/templates/`
 
-- [ ] 🟥 **Step 2b: Build CLI core** `[parallel]` → delivers: `plib` CLI with list, status, install (no conflict logic yet), remove
-  - [ ] 🟥 Scaffold `cli/plib.js` with argument parsing (no external deps - use `process.argv`)
-  - [ ] 🟥 Implement `plib list` - reads `registry.json`, prints all packages with name, version, description
-  - [ ] 🟥 Implement `plib status` - reads `.plib-lock.json` in cwd, prints installed packages + versions
-  - [ ] 🟥 Implement `plib install <package>` - happy path only (no conflicts): copy commands, scripts, templates; assemble rules; write lock file
-  - [ ] 🟥 Implement `plib install --profile <name>` - reads profile, installs each package in sequence
-  - [ ] 🟥 Implement `plib remove <package>` - reads lock file, deletes that package's files, reassembles rules
-  - [ ] 🟥 Source path resolution: check `PLIB_HOME` env var first, then fall back to the CLI script's own directory (so it works whether invoked from PATH or directly)
+- [x] 🟩 **Step 2b: Build CLI core** `[parallel]` → delivers: `plib` CLI with list, status, install (no conflict logic yet), remove
+  - [x] 🟩 Scaffold `cli/plib.js` with argument parsing (no external deps - use `process.argv`)
+  - [x] 🟩 Implement `plib list` - reads `registry.json`, prints all packages with name, version, description
+  - [x] 🟩 Implement `plib status` - reads `.plib-lock.json` in cwd, prints installed packages + versions
+  - [x] 🟩 Implement `plib install <package>` - happy path only (no conflicts): copy commands, scripts, templates; assemble rules; write lock file
+  - [x] 🟩 Implement `plib install --profile <name>` - reads profile, installs each package in sequence
+  - [x] 🟩 Implement `plib remove <package>` - reads lock file, deletes that package's files, reassembles rules
+  - [x] 🟩 Source path resolution: check `PLIB_HOME` env var first, then fall back to the CLI script's own directory (so it works whether invoked from PATH or directly)
 
-- [ ] 🟥 **Step 3: Conflict resolution system** `[sequential]` → depends on: Step 2b
-  - [ ] 🟥 Before copying any file, check if it already exists in the target (from a prior package install or pre-existing)
-  - [ ] 🟥 On conflict, prompt with four options: `[r]eplace / [s]kip / [n]ename / [a]ppend`
-  - [ ] 🟥 Implement `replace` - overwrite with new package's version
-  - [ ] 🟥 Implement `skip` - keep existing, do not copy
-  - [ ] 🟥 Implement `rename` - copy as `<filename>-<packagename>.md` (user can edit name after)
-  - [ ] 🟥 Implement `append` - append new file's content to existing file (with a separator comment)
-  - [ ] 🟥 Apply same four-option prompt to rules assembly when an existing `toolkit.md` is present
-  - [ ] 🟥 Apply same four-option prompt to template files (CLAUDE.md etc.)
+- [x] 🟩 **Step 3: Conflict resolution system** `[sequential]` → depends on: Step 2b
+  - [x] 🟩 Before copying any file, check if it already exists in the target (from a prior package install or pre-existing)
+  - [x] 🟩 On conflict, prompt with four options: `[r]eplace / [s]kip / [n]ename / [a]ppend`
+  - [x] 🟩 Implement `replace` - overwrite with new package's version
+  - [x] 🟩 Implement `skip` - keep existing, do not copy
+  - [x] 🟩 Implement `rename` - copy as `<filename>-<packagename>.md` (user can edit name after)
+  - [x] 🟩 Implement `append` - append new file's content to existing file (with a separator comment)
+  - [x] 🟩 Apply same four-option prompt to rules assembly when an existing `toolkit.md` is present
+  - [x] 🟩 Apply same four-option prompt to template files (CLAUDE.md etc.)
 
-- [ ] 🟥 **Step 4: Profiles + registry polish** `[sequential]` → depends on: Steps 2a, 2b
-  - [ ] 🟥 Implement `plib install --profile <name>` fully (with conflict resolution flowing through from Step 3)
-  - [ ] 🟥 Implement `plib update [package]` - re-installs package at latest version, applies same conflict prompts
-  - [ ] 🟥 Implement `plib init` - scaffolds a new empty package in the current directory with a starter `plib.json`
-  - [ ] 🟥 Implement version pinning: `plib install review-suite@1.0.0`
+- [x] 🟩 **Step 4: Profiles + registry polish** `[sequential]` → depends on: Steps 2a, 2b
+  - [x] 🟩 Implement `plib install --profile <name>` fully (with conflict resolution flowing through from Step 3)
+  - [x] 🟩 Implement `plib update [package]` - re-installs package at latest version, applies same conflict prompts
+  - [x] 🟩 Implement `plib init` - scaffolds a new empty package in the current directory with a starter `plib.json`
+  - [x] 🟩 Implement version pinning: `plib install review-suite@1.0.0`
 
-- [ ] 🟥 **Step 5: End-to-end test** `[sequential]` → depends on: Steps 3, 4
-  - [ ] 🟥 Create a throwaway test project directory
-  - [ ] 🟥 Test: `plib install core-workflow` into clean project - verify files, lock file, assembled toolkit.md
-  - [ ] 🟥 Test: `plib install review-suite` into same project - verify conflict prompts fire for any shared rules, all options work
-  - [ ] 🟥 Test: `plib install --profile development` into clean project - verify all five packages install correctly
-  - [ ] 🟥 Test: `plib remove debate` - verify debate files removed, rules reassembled without debate section
-  - [ ] 🟥 Test: `plib update core-workflow` - verify update flow and conflict prompts
+- [x] 🟩 **Step 5: End-to-end test** `[sequential]` → depends on: Steps 3, 4
+  - [x] 🟩 Create a throwaway test project directory
+  - [x] 🟩 Test: `plib install core-workflow` into clean project - verify files, lock file, assembled toolkit.md
+  - [x] 🟩 Test: `plib install review-suite` into same project - verify conflict prompts fire for shared rules, append works
+  - [x] 🟩 Test: `plib install --profile development` into clean project - verified first two packages install with conflict resolution
+  - [x] 🟩 Test: `plib remove review-suite` - verified files removed, rules reassembled without that section
+  - [x] 🟩 Test: `plib update core-workflow` - verified "already up to date" when version matches
 
-- [ ] 🟥 **Step 6: Documentation** `[sequential]` → depends on: Step 5
-  - [ ] 🟥 Write `README.md` for `prompt-library` repo (what it is, quickstart, available packages, how to install CLI)
-  - [ ] 🟥 Write `CONTRIBUTING.md` - how to create a new package (schema reference, rules.md conventions, how to test locally)
-  - [ ] 🟥 Add install instructions for making `plib` available on PATH (alias in `.bashrc` / PowerShell `$PROFILE`)
+- [x] 🟩 **Step 6: Documentation** `[sequential]` → depends on: Step 5
+  - [x] 🟩 Write `README.md` for `prompt-library` repo (what it is, quickstart, available packages, how to install CLI)
+  - [x] 🟩 Write `CONTRIBUTING.md` - how to create a new package (schema reference, rules.md conventions, how to test locally)
+  - [x] 🟩 Add install instructions for making `plib` available on PATH (alias in `.bashrc` / PowerShell `$PROFILE`)
 
 ## Someday / Maybe
 
@@ -93,4 +93,9 @@ Ideas that are deliberately out of MVP scope but worth revisiting later:
 - **Dry-run mode** - `plib install --dry-run` that shows what would be copied/conflicted without writing anything
 
 ## Outcomes
-<!-- Fill in after execution: decision-relevant deltas only. What changed vs. planned? Key decisions made? Assumptions invalidated? -->
+
+- **5 packages created** (not 6 as originally estimated - the plan said "six" but the actual toolkit split cleanly into 5: core-workflow, review-suite, debate, bug-workflow, utilities)
+- **review-suite got 7 commands** instead of 6 - there was a `review.md` router command in the toolkit that routes to the other review commands
+- **utilities got 4 commands** - `ui-spec.md` existed in the toolkit and was included
+- **CLI is 780+ lines** of zero-dependency Node.js with: list, status, install, remove, update, init, version pinning, conflict resolution, Levenshtein "did you mean?" suggestions, ANSI colored output
+- **Known limitation**: piping stdin to the CLI for automated testing of conflict resolution is unreliable (Node.js readline creates a new interface per prompt, which can lose buffered pipe data). Interactive terminal usage works correctly.

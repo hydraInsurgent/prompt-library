@@ -1,0 +1,12 @@
+{
+  "name": "utilities",
+  "version": "1.0.0",
+  "description": "Parallel worktrees, learning mode, package review for external codebases, and UI specification generation",
+  "commands": [
+    "worktree.md",
+    "learning-opportunity.md",
+    "package-review.md",
+    "ui-spec.md"
+  ],
+  "rules": "rules.md"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "bug-workflow",
+  "version": "1.0.0",
+  "description": "Bug capture, investigation, and targeted fix workflow with GitHub issue integration",
+  "commands": [
+    "create-issue.md",
+    "pair-debug.md",
+    "fix.md"
+  ],
+  "rules": "rules.md"
+}

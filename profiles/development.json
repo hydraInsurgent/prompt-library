@@ -1,0 +1,11 @@
+{
+  "name": "development",
+  "description": "Full software development lifecycle - planning, execution, reviews, debugging, and utilities",
+  "packages": [
+    "core-workflow",
+    "review-suite",
+    "debate",
+    "bug-workflow",
+    "utilities"
+  ]
+}

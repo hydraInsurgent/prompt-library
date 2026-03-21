@@ -1,0 +1,19 @@
+{
+  "name": "debate",
+  "version": "1.0.0",
+  "description": "Multi-model AI peer review debates with ChatGPT and Gemini, plus peer-review evaluation",
+  "commands": [
+    "ask-gpt.md",
+    "ask-gemini.md",
+    "peer-review.md"
+  ],
+  "rules": "rules.md",
+  "scripts": [
+    "ask-gpt.js",
+    "ask-gemini.js"
+  ],
+  "npmDependencies": {
+    "openai": "^4.0.0",
+    "@google/generative-ai": "^0.21.0"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "version": "1",
+  "packages": [
+    {
+      "name": "core-workflow",
+      "version": "1.0.0",
+      "description": "Main development lifecycle - ideation, project setup, feature planning, execution, testing, documentation, and shipping",
+      "path": "packages/core-workflow"
+    },
+    {
+      "name": "review-suite",
+      "version": "1.0.0",
+      "description": "Code, UX, plan, browser, and command reviews with severity-rated findings and staff-level checks",
+      "path": "packages/review-suite"
+    },
+    {
+      "name": "debate",
+      "version": "1.0.0",
+      "description": "Multi-model AI peer review debates with ChatGPT and Gemini, plus peer-review evaluation",
+      "path": "packages/debate"
+    },
+    {
+      "name": "bug-workflow",
+      "version": "1.0.0",
+      "description": "Bug capture, investigation, and targeted fix workflow with GitHub issue integration",
+      "path": "packages/bug-workflow"
+    },
+    {
+      "name": "utilities",
+      "version": "1.0.0",
+      "description": "Parallel worktrees, learning mode, package review for external codebases, and UI specification generation",
+      "path": "packages/utilities"
+    }
+  ]
+}
