@@ -57,3 +57,34 @@ See [PACKAGE-SPEC.md](PACKAGE-SPEC.md) for the full schema reference.
 - Each package's `rules.md` is wrapped in attribution comments when assembled into `toolkit.md`
 - Keep `plib.json` version in sync with `registry.json`
 - Bump the version when you change command behavior
+
+## Common Mistakes
+
+These have caused real bugs. Check before shipping a new package:
+
+### plib.json field types
+
+| Field | Correct | Wrong | What happens |
+|---|---|---|---|
+| `commands` | `["cmd.md", "other.md"]` | `["cmd", "other"]` | CLI can't find files - "command file not found" warnings |
+| `rules` | `"rules.md"` | `true` | CLI crashes with `ERR_INVALID_ARG_TYPE` on `path.join` |
+| `scripts` | `["helper.js"]` | `"helper.js"` | CLI skips scripts (expects array) |
+| `templates` | `["CLAUDE.md"]` | `"CLAUDE.md"` | CLI skips templates (expects array) |
+
+### File naming
+- Commands **must** include the `.md` extension in plib.json: `"my-command.md"` not `"my-command"`
+- Command filenames must be unique across ALL packages. Check existing packages before naming.
+- Use kebab-case for everything: `lab-learn.md` not `labLearn.md` or `lab_learn.md`
+
+### Version sync
+- `plib.json` version and `registry.json` version for the same package **must** match
+- After bumping a version in plib.json, update registry.json in the same commit
+
+### Rules content
+- `rules.md` must be a standalone file, not a boolean flag
+- Rules should contain behavioral instructions for Claude, not documentation for humans
+- Do not duplicate rules content in `templates/CLAUDE.md` - rules go in rules.md, project overview goes in CLAUDE.md
+
+### Testing
+- Always test with `plib install <package>` in a throwaway directory before committing
+- Verify: commands copied, rules assembled into toolkit.md, templates copied, no warnings or crashes

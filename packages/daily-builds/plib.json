@@ -3,16 +3,16 @@
   "version": "1.0.0",
   "description": "Concept Labs - structured learning through variation exploration, anti-patterns, and trade-off analysis",
   "commands": [
-    "lab-learn",
-    "lab-concept",
-    "lab-execute",
-    "lab-break",
-    "lab-contrast",
-    "lab-review",
-    "lab-document",
-    "lab-revision"
+    "lab-learn.md",
+    "lab-concept.md",
+    "lab-execute.md",
+    "lab-break.md",
+    "lab-contrast.md",
+    "lab-review.md",
+    "lab-document.md",
+    "lab-revision.md"
   ],
-  "rules": true,
+  "rules": "rules.md",
   "scripts": [],
   "templates": [
     "CLAUDE.md"

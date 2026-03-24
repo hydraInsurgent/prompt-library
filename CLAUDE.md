@@ -21,7 +21,8 @@ prompt-library/
 │   ├── review-suite/        Code and design review commands
 │   ├── debate/              Multi-model AI debate commands + scripts
 │   ├── bug-workflow/        Bug tracking and fix commands
-│   └── utilities/           Worktree, learning, packaging commands
+│   ├── utilities/           Worktree, learning, packaging commands
+│   └── daily-builds/        Concept labs - structured learning through exploration
 ├── profiles/                Curated package bundles
 ├── registry.json            Index of all packages (name, version, path)
 ├── PACKAGE-SPEC.md          Schema reference for package authors
@@ -74,6 +75,18 @@ cli: <what changed>
 - **registry.json is the discovery layer.** `plib list` reads only this file. Package versions in registry.json must match the corresponding `plib.json`.
 - **Comment syntax is file-aware.** When appending to files during conflict resolution, separators use the native comment style for that file extension (.js gets `//`, .md gets `<!-- -->`, .py gets `#`, etc.).
 - **Rules use tagged sections.** Each package's rules in `toolkit.md` are wrapped in `<!-- [name vX.Y.Z] -->` / `<!-- [/name] -->` for clean assembly and removal.
+
+## Before Creating or Modifying a Package
+
+**Always read these files first:**
+- `PACKAGE-SPEC.md` - schema reference for `plib.json`, `registry.json`, profiles, and lock files
+- `CONTRIBUTING.md` - step-by-step guide and **Common Mistakes** section with real bugs to avoid
+
+**Critical gotchas:**
+- Commands in `plib.json` must include `.md` extension: `"lab-learn.md"` not `"lab-learn"`
+- Rules field must be a string path: `"rules.md"` not `true`
+- Version in `plib.json` and `registry.json` must match
+- Test with `plib install <package>` in a throwaway directory before committing
 
 ## Preferences
 
