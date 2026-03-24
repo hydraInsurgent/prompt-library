@@ -16,39 +16,44 @@ Instead of copying an entire toolkit into every project, `plib` lets you pick an
 | **bug-workflow** | Bug capture, investigation, and targeted fix workflow |
 | **utilities** | Parallel worktrees, learning mode, package review, UI specs |
 
-## Quick Start
+## Setup (one time)
 
-```bash
-# List available packages
-node cli/plib.js list
-
-# Install a single package
-node cli/plib.js install core-workflow
-
-# Install a full profile (all packages)
-node cli/plib.js install --profile development
-
-# Check what's installed in the current project
-node cli/plib.js status
-```
-
-## Setting Up a Shell Alias
-
-To use `plib` from anywhere:
-
-**Bash / Zsh:**
-```bash
-echo 'alias plib="node /path/to/prompt-library/cli/plib.js"' >> ~/.bashrc
-source ~/.bashrc
-```
+Run the setup script to register `plib` as a global command in your shell:
 
 **PowerShell:**
 ```powershell
-Add-Content $PROFILE 'function plib { node "C:\path\to\prompt-library\cli\plib.js" @args }'
+powershell -ExecutionPolicy Bypass -File "C:\path\to\prompt-library\scripts\setup.ps1"
 . $PROFILE
 ```
 
-Or set the `PLIB_HOME` environment variable and add the CLI to your PATH.
+**Bash / Zsh:**
+```bash
+bash /path/to/prompt-library/scripts/setup.sh
+source ~/.bashrc  # or ~/.zshrc
+```
+
+This adds a `plib` function to your shell profile that knows where the prompt library lives. No paths to remember after this.
+
+## Usage
+
+Navigate to your project root (where `.claude/` lives or will be created) and run:
+
+```bash
+# See what's available
+plib list
+
+# Install a single package
+plib install core-workflow
+
+# Install everything for a dev project
+plib install --profile development
+
+# Check what's installed
+plib status
+
+# Remove a package
+plib remove debate
+```
 
 ## CLI Commands
 
