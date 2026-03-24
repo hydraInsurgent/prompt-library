@@ -1,0 +1,20 @@
+{
+  "name": "daily-builds",
+  "version": "1.0.0",
+  "description": "Concept Labs - structured learning through variation exploration, anti-patterns, and trade-off analysis",
+  "commands": [
+    "lab-learn",
+    "lab-concept",
+    "lab-execute",
+    "lab-break",
+    "lab-contrast",
+    "lab-review",
+    "lab-document",
+    "lab-revision"
+  ],
+  "rules": true,
+  "scripts": [],
+  "templates": [
+    "CLAUDE.md"
+  ]
+}

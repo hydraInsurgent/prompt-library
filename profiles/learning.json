@@ -1,0 +1,9 @@
+{
+  "name": "learning",
+  "description": "Concept Labs workflow - structured learning with variation exploration, reviews, and AI debates",
+  "packages": [
+    "daily-builds",
+    "review-suite",
+    "debate"
+  ]
+}

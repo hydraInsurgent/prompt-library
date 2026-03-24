@@ -30,6 +30,12 @@
       "version": "1.0.0",
       "description": "Parallel worktrees, learning mode, package review for external codebases, and UI specification generation",
       "path": "packages/utilities"
+    },
+    {
+      "name": "daily-builds",
+      "version": "1.0.0",
+      "description": "Concept Labs - structured learning through variation exploration, anti-patterns, and trade-off analysis",
+      "path": "packages/daily-builds"
     }
   ]
 }
