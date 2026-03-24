@@ -61,23 +61,98 @@ function copyFile(src, dest) {
 }
 
 // ---------------------------------------------------------------------------
+// Comment syntax by file extension
+// ---------------------------------------------------------------------------
+
+const COMMENT_STYLES = {
+  // Markdown / HTML
+  '.md':   { start: '<!-- ', end: ' -->' },
+  '.html': { start: '<!-- ', end: ' -->' },
+  '.xml':  { start: '<!-- ', end: ' -->' },
+  '.svg':  { start: '<!-- ', end: ' -->' },
+  // JavaScript / TypeScript / C-style
+  '.js':   { start: '// ', end: '' },
+  '.ts':   { start: '// ', end: '' },
+  '.jsx':  { start: '// ', end: '' },
+  '.tsx':  { start: '// ', end: '' },
+  '.mjs':  { start: '// ', end: '' },
+  '.cjs':  { start: '// ', end: '' },
+  '.css':  { start: '/* ', end: ' */' },
+  '.scss': { start: '/* ', end: ' */' },
+  '.less': { start: '/* ', end: ' */' },
+  '.json': { start: '// ', end: '' },
+  '.java': { start: '// ', end: '' },
+  '.c':    { start: '// ', end: '' },
+  '.h':    { start: '// ', end: '' },
+  '.cpp':  { start: '// ', end: '' },
+  '.cs':   { start: '// ', end: '' },
+  '.go':   { start: '// ', end: '' },
+  '.rs':   { start: '// ', end: '' },
+  '.swift':{ start: '// ', end: '' },
+  '.kt':   { start: '// ', end: '' },
+  // Shell / scripting
+  '.sh':   { start: '# ', end: '' },
+  '.bash': { start: '# ', end: '' },
+  '.zsh':  { start: '# ', end: '' },
+  '.ps1':  { start: '# ', end: '' },
+  '.py':   { start: '# ', end: '' },
+  '.rb':   { start: '# ', end: '' },
+  '.yml':  { start: '# ', end: '' },
+  '.yaml': { start: '# ', end: '' },
+  '.toml': { start: '# ', end: '' },
+  // SQL
+  '.sql':  { start: '-- ', end: '' },
+};
+
+/** Get comment syntax for a file, based on its extension. Falls back to # style. */
+function getCommentStyle(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  return COMMENT_STYLES[ext] || { start: '# ', end: '' };
+}
+
+/** Wrap text in the correct comment syntax for a given file. */
+function makeComment(filePath, text) {
+  const style = getCommentStyle(filePath);
+  return `${style.start}${text}${style.end}`;
+}
+
+// ---------------------------------------------------------------------------
 // Conflict resolution
 // ---------------------------------------------------------------------------
+
+// Tracks the user's "apply to all" choice. null means ask each time.
+let conflictApplyAll = null;
 
 /**
  * Prompt the user for conflict resolution.
  * Returns one of: 'replace', 'skip', 'rename', 'append'
  */
 function askConflict(filePath) {
+  // If user previously chose "apply to all", use that choice
+  if (conflictApplyAll) {
+    const relPath = path.relative(process.cwd(), filePath);
+    console.log(`  ${color.yellow('Conflict:')} ${relPath} already exists → ${color.dim(conflictApplyAll + ' (all)')}`);
+    return Promise.resolve(conflictApplyAll);
+  }
+
   return new Promise((resolve) => {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     const relPath = path.relative(process.cwd(), filePath);
     rl.question(
       `  ${color.yellow('Conflict:')} ${relPath} already exists\n` +
-      `  [${color.bold('r')}]eplace / [${color.bold('s')}]kip / [${color.bold('n')}]ame / [${color.bold('a')}]ppend > `,
+      `  [${color.bold('r')}]eplace / [${color.bold('s')}]kip / [${color.bold('n')}]ame / [${color.bold('a')}]ppend / apply [${color.bold('R')}] [${color.bold('S')}] [${color.bold('A')}] to all > `,
       (answer) => {
         rl.close();
-        const key = (answer || '').trim().toLowerCase();
+        const raw = (answer || '').trim();
+        // Uppercase = apply to all remaining conflicts
+        const allMap = { R: 'replace', S: 'skip', A: 'append' };
+        if (allMap[raw]) {
+          conflictApplyAll = allMap[raw];
+          console.log(color.dim(`    → applying "${conflictApplyAll}" to all remaining conflicts`));
+          resolve(conflictApplyAll);
+          return;
+        }
+        const key = raw.toLowerCase();
         const map = { r: 'replace', s: 'skip', n: 'rename', a: 'append' };
         resolve(map[key] || 'skip');
       }
@@ -110,7 +185,8 @@ async function copyFileWithConflict(src, dest, packageName) {
       case 'append': {
         const existing = fs.readFileSync(dest, 'utf-8');
         const incoming = fs.readFileSync(src, 'utf-8');
-        const separator = `\n\n<!-- appended from ${packageName} -->\n\n`;
+        const comment = makeComment(dest, `appended from ${packageName}`);
+        const separator = `\n\n${comment}\n\n`;
         fs.writeFileSync(dest, existing.trimEnd() + separator + incoming, 'utf-8');
         return true;
       }
@@ -404,14 +480,14 @@ async function installPackage(packageName, sourcePath, registry, cwd) {
     const rulesPath = path.join(pkgDir, pkgMeta.rules);
     if (fs.existsSync(rulesPath)) {
       const rulesContent = fs.readFileSync(rulesPath, 'utf-8');
+      const section = wrapRulesSection(pkgMeta.name, pkgMeta.version, rulesContent);
       let toolkit = readToolkit(cwd);
 
-      // Remove existing section for this package (in case of re-install)
+      // Remove any existing section for this package (in case of re-install)
       const cleanedToolkit = removeSectionFromToolkit(toolkit, pkgMeta.name);
 
-      // If toolkit.md exists with content from OTHER packages, prompt for conflict
-      if (cleanedToolkit.trim() && toolkit.trim()) {
-        const section = wrapRulesSection(pkgMeta.name, pkgMeta.version, rulesContent);
+      if (cleanedToolkit.trim()) {
+        // toolkit.md has content from OTHER packages - prompt for conflict
         const action = await askConflict(rulesFilePath(cwd));
         switch (action) {
           case 'skip':
@@ -421,7 +497,6 @@ async function installPackage(packageName, sourcePath, registry, cwd) {
             summary.rules = true;
             break;
           case 'rename': {
-            // Write this package's rules as a separate file
             const altPath = path.join(cwd, RULES_DIR, `toolkit-${pkgMeta.name}.md`);
             ensureDir(path.dirname(altPath));
             fs.writeFileSync(altPath, section + '\n', 'utf-8');
@@ -430,20 +505,15 @@ async function installPackage(packageName, sourcePath, registry, cwd) {
             break;
           }
           case 'append':
-          default:
-            // Append is the natural default for rules
             writeToolkit(cwd, cleanedToolkit.trim() + '\n\n' + section);
             summary.rules = true;
             break;
+          default:
+            break;
         }
       } else {
-        // No conflict - first rules or re-install
-        const section = wrapRulesSection(pkgMeta.name, pkgMeta.version, rulesContent);
-        if (cleanedToolkit.trim()) {
-          writeToolkit(cwd, cleanedToolkit.trim() + '\n\n' + section);
-        } else {
-          writeToolkit(cwd, section);
-        }
+        // No conflict - first package or re-install of the only package
+        writeToolkit(cwd, section);
         summary.rules = true;
       }
     } else {
@@ -482,6 +552,9 @@ async function installPackage(packageName, sourcePath, registry, cwd) {
 }
 
 async function cmdInstall(args) {
+  // Reset apply-all choice for each install invocation
+  conflictApplyAll = null;
+
   const sourcePath = resolveSourcePath();
   const registry = loadRegistry(sourcePath);
   const cwd = process.cwd();
