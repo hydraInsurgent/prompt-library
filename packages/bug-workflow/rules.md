@@ -4,12 +4,7 @@
 
 <rules>
 
-1. **Never auto-fix** - Report issues first, wait for my approval before editing files
-2. **Ask questions** - If something is unclear, ask before assuming
-3. **Explain simply** - Use plain English, avoid jargon
-4. **Show your work** - Tell me what you're doing and why
-5. **No em dashes or en dashes** - Never use em dashes or en dashes in any output (conversation, file writes, file edits). Use regular hyphens or rewrite the sentence.
-6. **Use the Skill tool for slash commands** - Never manually replicate /create-issue, /pair-debug, or /fix. Always invoke them via the Skill tool so the template is followed.
+1. **Use the Skill tool for slash commands** - Never manually replicate /create-issue, /pair-debug, or /fix. Always invoke them via the Skill tool so the template is followed.
 
 </rules>
 
@@ -43,15 +38,3 @@
 - `Patch LAN access issue for mobile devices`
 
 </guidelines>
-
----
-
-## Remember
-
-<rules>
-
-- I'm learning - explain what you do
-- Report first, fix later
-- Ask if unsure
-
-</rules>
