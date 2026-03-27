@@ -93,3 +93,11 @@ cli: <what changed>
 - Keep the CLI concise. Avoid adding frameworks or abstractions.
 - Markdown commands are copied verbatim from the source toolkit. Do not modify their content during packaging - they should match the original.
 - When in doubt about scope, keep packages small and focused rather than bundling unrelated commands.
+
+## Key Documents
+
+Always read before proposing or implementing changes:
+- `docs/architecture.md` - system structure, components, data model
+- `docs/product-design.md` - what plib is, who it's for, feature principles
+- `docs/engineering-guidelines.md` - patterns to follow, known deviations
+- `docs/backlog.md` - what's active, what's planned, known bugs

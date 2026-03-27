@@ -1,0 +1,13 @@
+{
+  "source": "D:\\Personal\\Code\\Prompt Library\\prompt-library",
+  "installed": {
+    "core-workflow": {
+      "version": "1.0.0",
+      "installedAt": "2026-03-27"
+    },
+    "bug-workflow": {
+      "version": "1.0.0",
+      "installedAt": "2026-03-27"
+    }
+  }
+}
