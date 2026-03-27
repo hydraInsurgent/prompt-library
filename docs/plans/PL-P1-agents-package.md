@@ -1,6 +1,6 @@
 # Feature Implementation Plan: Agents Package
 
-**Overall Progress:** `0%`
+**Overall Progress:** `100%`
 
 ## TLDR
 
@@ -38,32 +38,34 @@ files are installed. `plib remove agents` removes only those files.
 
 ## Tasks
 
-- [ ] 🟥 **Step 1: Embed agency-agents source** `[parallel]` → delivers: agent files at `packages/agents/source/`
-  - [ ] 🟥 Copy full agency-agents repo from `D:/Personal/Code/Exploration/AI-Tools/agency-agents` into `packages/agents/source/` (include `.git`)
-  - [ ] 🟥 Create `packages/agents/my-agents/` with a `.gitkeep` so the folder is tracked
-  - [ ] 🟥 Create `packages/agents/rules.md` (empty - required by spec convention)
+- [x] 🟩 **Step 1: Embed agency-agents source** `[parallel]` → delivers: agent files at `packages/agents/source/`
+  - [x] 🟩 Copy full agency-agents repo from `D:/Personal/Code/Exploration/AI-Tools/agency-agents` into `packages/agents/source/` (include `.git`)
+  - [x] 🟩 Create `packages/agents/my-agents/` with a `.gitkeep` so the folder is tracked
+  - [x] 🟩 Create `packages/agents/rules.md` (empty - required by spec convention)
 
-- [ ] 🟥 **Step 2: Create package manifest** `[parallel]` → delivers: registered `agents` package
-  - [ ] 🟥 Create `packages/agents/plib.json` with `"type": "agent-catalog"`, no commands/rules/scripts fields
-  - [ ] 🟥 Add `agents` entry to `registry.json`
+- [x] 🟩 **Step 2: Create package manifest** `[parallel]` → delivers: registered `agents` package
+  - [x] 🟩 Create `packages/agents/plib.json` with `"type": "agent-catalog"`, no commands/rules/scripts fields
+  - [x] 🟩 Add `agents` entry to `registry.json`
 
-- [ ] 🟥 **Step 3: Add agent-catalog CLI logic** `[sequential]` → depends on: Steps 1, 2
-  - [ ] 🟥 Add `parseFrontmatter(content)` - regex-based YAML frontmatter parser (name, description, emoji)
-  - [ ] 🟥 Add `scanAgentCatalog(pkgDir)` - reads `my-agents/` (custom, shown first) then `source/` categories; skips `scripts/` and dot-folders
-  - [ ] 🟥 Add `parseSelection(input, max)` - parses `1,3,5-7` strings into 0-based index arrays
-  - [ ] 🟥 Add `promptCategorySelect(categories)` - numbered list, returns chosen category object
-  - [ ] 🟥 Add `promptAgentSelect(agents, categoryName)` - numbered list with emoji + description, `all` requires confirmation, returns selected agent objects
-  - [ ] 🟥 Add `cmdInstallAgents(pkgMeta, pkgDir, cwd, directAgentName)` - orchestrates full flow; direct install bypasses selector
-  - [ ] 🟥 Extend `installPackage(packageName, sourcePath, registry, cwd, extraArgs=[])` - detect `type: "agent-catalog"`, route to `cmdInstallAgents`; pass `commandArgs.slice(1)` from `cmdInstall`
-  - [ ] 🟥 Extend `cmdRemove` - detect `agent-catalog` type, remove only files in `lock.installed.agents.files[]`
-  - [ ] 🟥 Add `// TODO: per-tool destination config` comment at agent install destination line
+- [x] 🟩 **Step 3: Add agent-catalog CLI logic** `[sequential]` → depends on: Steps 1, 2
+  - [x] 🟩 Add `parseFrontmatter(content)` - regex-based YAML frontmatter parser (name, description, emoji)
+  - [x] 🟩 Add `scanAgentCatalog(pkgDir)` - reads `my-agents/` (custom, shown first) then `source/` categories; skips `scripts/` and dot-folders
+  - [x] 🟩 Add `parseSelection(input, max)` - parses `1,3,5-7` strings into 0-based index arrays
+  - [x] 🟩 Add `promptCategorySelect(categories)` - numbered list, returns chosen category object
+  - [x] 🟩 Add `promptAgentSelect(agents, categoryName)` - numbered list with emoji + description, `all` requires confirmation, returns selected agent objects
+  - [x] 🟩 Add `cmdInstallAgents(pkgMeta, pkgDir, cwd, directAgentName)` - orchestrates full flow; direct install bypasses selector
+  - [x] 🟩 Extend `installPackage(packageName, sourcePath, registry, cwd, extraArgs=[])` - detect `type: "agent-catalog"`, route to `cmdInstallAgents`; pass `commandArgs.slice(1)` from `cmdInstall`
+  - [x] 🟩 Extend `cmdRemove` - detect `agent-catalog` type, remove only files in `lock.installed.agents.files[]`
+  - [x] 🟩 Add `// TODO: per-tool destination config` comment at agent install destination line
 
-- [ ] 🟥 **Step 4: Update documentation** `[sequential]` → depends on: Step 2
-  - [ ] 🟥 `docs/architecture.md` - add `.claude/agents/` to install destinations diagram; add `agent-catalog` to package types
-  - [ ] 🟥 `docs/product-design.md` - update "commands, rules, and scripts" references to include agents
-  - [ ] 🟥 `PACKAGE-SPEC.md` - document the optional `type` field and `agent-catalog` behaviour
-  - [ ] 🟥 `docs/backlog.md` - add future item: per-tool destinations + `plib install agent` / `plib install command` subcommand split
+- [x] 🟩 **Step 4: Update documentation** `[sequential]` → depends on: Step 2
+  - [x] 🟩 `docs/architecture.md` - add `.claude/agents/` to install destinations diagram; add `agent-catalog` to package types
+  - [x] 🟩 `docs/product-design.md` - update "commands, rules, and scripts" references to include agents
+  - [x] 🟩 `PACKAGE-SPEC.md` - document the optional `type` field and `agent-catalog` behaviour
+  - [x] 🟩 `docs/backlog.md` - add future item: per-tool destinations + `plib install agent` / `plib install command` subcommand split
 
 ## Outcomes
 
-<!-- Fill in after execution: decision-relevant deltas only. What changed vs. planned? -->
+- **Step 1 deviation:** Initial `cp -r` of the outer `agency-agents/` dir copied the wrong level - user manually corrected by placing `source/` and `my-agents/` directly under `packages/agents/`. Structure confirmed correct.
+- **`args.slice(1)` scope:** In `cmdInstall`, extra args are sliced from the full `args` array (after the package name). If the package name contains `@version`, only args beyond position 0 are passed - this is correct since version pinning is on args[0].
+- **`rules.md` is kept minimal:** Agent-catalog packages have nothing to contribute to `toolkit.md`. The file exists only to satisfy the convention that packages have a `rules.md`; it contains a comment explaining this.

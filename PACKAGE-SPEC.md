@@ -26,11 +26,24 @@ Every package directory must contain a `plib.json` at its root.
 | `name` | string | yes | Unique package identifier, kebab-case |
 | `version` | string | yes | Semver version (e.g. `1.0.0`) |
 | `description` | string | yes | One-line description shown in `plib list` |
+| `type` | string | no | Package type. Omit for standard packages. Set to `"agent-catalog"` for interactive agent installers (see below) |
 | `commands` | string[] | no | Markdown files copied to `.claude/commands/` |
 | `rules` | string | no | Single markdown file whose contents are assembled into `.claude/rules/toolkit.md` |
 | `scripts` | string[] | no | Files copied to `scripts/` in the target project |
 | `templates` | string[] | no | Files copied to the project root (e.g. `CLAUDE.md`) or `docs/` subdirectories |
 | `npmDependencies` | object | no | npm packages required at runtime. The CLI will print an `npm install` command for the user |
+
+### Agent catalog packages (`type: "agent-catalog"`)
+
+When `type` is `"agent-catalog"`, the standard install flow is replaced with an interactive selector. The `commands`, `rules`, `scripts`, and `templates` fields are ignored.
+
+The package directory must contain:
+- `source/` - agent `.md` files organized in category subfolders (e.g. `source/engineering/*.md`)
+- `my-agents/` - optional user-managed custom agents, same structure as `source/`
+
+Running `plib install agents` shows a numbered category list, then a numbered agent list. Selected files are copied to `.claude/agents/` in the target project. The lock file entry for an agent-catalog package includes a `files[]` array tracking which agent filenames were installed.
+
+Direct install (bypasses selector): `plib install agents <filename>`
 
 ### Conventions
 
@@ -105,3 +118,4 @@ Written to the target project root on install. Tracks what is installed.
 | `installed` | object | Map of package name to install metadata |
 | `installed[name].version` | string | Version that was installed |
 | `installed[name].installedAt` | string | ISO date of installation |
+| `installed[name].files` | string[] | (agent-catalog only) Filenames installed to `.claude/agents/`. Not present for standard packages. |

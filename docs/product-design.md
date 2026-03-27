@@ -9,7 +9,7 @@ and update this document - not to automatically reject the idea.
 
 ## What plib Is
 
-A CLI tool for installing curated packages of Claude Code commands, rules, and scripts into any project. Instead of copying an entire toolkit into every project, developers pick the packages they need. Each package is self-contained and installs cleanly into `.claude/`.
+A CLI tool for installing curated packages of Claude Code commands, rules, scripts, and AI agents into any project. Instead of copying an entire toolkit into every project, developers pick the packages they need. Each package is self-contained and installs cleanly into `.claude/`.
 
 The library itself is also a curated collection of those packages — a growing set of opinionated workflows for how to work with Claude Code effectively.
 
@@ -45,6 +45,9 @@ A developer who uses Claude Code heavily across multiple projects. They have bui
 
 ### Package install
 User runs `plib install <name>` from a project root. The CLI reads `registry.json` to find the package path, reads `plib.json` for the manifest, then copies commands to `.claude/commands/`, scripts to `scripts/`, and templates to the project root. Rules are appended to `.claude/rules/toolkit.md` in a tagged section. Conflicts (files that already exist) prompt the user: replace, skip, rename, or append.
+
+### Agent install
+`plib install agents` is a special interactive flow. The CLI presents a numbered category selector, then a numbered agent selector within the chosen category. Selected agent `.md` files are copied to `.claude/agents/`. Installed filenames are tracked in `.plib-lock.json`. Users can also bypass the selector with a direct name: `plib install agents <filename>`.
 
 ### Profile install
 A profile is a JSON file in `profiles/` listing package names. `plib install --profile <name>` installs each package in sequence.

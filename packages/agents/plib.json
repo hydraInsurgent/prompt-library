@@ -1,0 +1,6 @@
+{
+  "name": "agents",
+  "version": "1.0.0",
+  "description": "AI agent catalog - interactive selector for 150+ specialist agents across 17 categories",
+  "type": "agent-catalog"
+}

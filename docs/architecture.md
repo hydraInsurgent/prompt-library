@@ -13,12 +13,16 @@ It is the primary reference for any AI assistant or contributor working in this 
 prompt-library/ (source)         target-project/ (install destination)
 ├── cli/plib.js                  ├── .claude/
 ├── packages/                    │   ├── commands/    ← commands copied here
-│   ├── core-workflow/           │   └── rules/
-│   ├── review-suite/            │       └── toolkit.md  ← rules assembled here
-│   ├── debate/                  ├── scripts/         ← scripts copied here
-│   ├── bug-workflow/            ├── <templates>      ← templates copied to root
-│   ├── utilities/               └── .plib-lock.json  ← tracks installs
-│   └── daily-builds/
+│   ├── core-workflow/           │   ├── agents/      ← agents copied here
+│   ├── review-suite/            │   └── rules/
+│   ├── debate/                  │       └── toolkit.md  ← rules assembled here
+│   ├── bug-workflow/            ├── scripts/         ← scripts copied here
+│   ├── utilities/               ├── <templates>      ← templates copied to root
+│   ├── daily-builds/            └── .plib-lock.json  ← tracks installs
+│   └── agents/
+│       ├── plib.json
+│       ├── source/     ← embedded agency-agents repo (.git included)
+│       └── my-agents/  ← user custom agents
 ├── profiles/
 ├── registry.json
 └── docs/
@@ -66,6 +70,22 @@ packages/<name>/
 └── templates/       Optional files copied to project root on install
 ```
 
+**Agent catalog packages** use a different layout and a special `"type": "agent-catalog"` field in `plib.json`. They do not have commands, rules, or scripts. Instead, the install flow is interactive:
+
+```
+packages/agents/
+├── plib.json        Manifest: name, version, type: "agent-catalog"
+├── source/          Embedded agency-agents repo (git clone, .git included for syncing)
+│   ├── <category>/  One folder per agent type (e.g. engineering/, marketing/)
+│   │   └── *.md    Agent prompt files
+│   └── ...
+└── my-agents/       User-managed custom agents (same structure as source/)
+    └── <category>/
+        └── *.md
+```
+
+Running `plib install agents` launches an interactive numbered selector: pick a category, pick agents. Selected files are copied to `.claude/agents/` in the target project. To sync upstream agent updates, `cd packages/agents/source && git pull`.
+
 ---
 
 ## CLI (`cli/plib.js`)
@@ -108,10 +128,12 @@ Single-file Node.js script, zero npm dependencies. Uses only built-ins: `fs`, `p
 ```json
 {
   "installed": {
-    "core-workflow": { "version": "1.0.0", "installedAt": "..." }
+    "core-workflow": { "version": "1.0.0", "installedAt": "..." },
+    "agents": { "version": "1.0.0", "installedAt": "...", "files": ["engineering-ai-engineer.md"] }
   }
 }
 ```
+Agent-catalog entries carry an extra `files[]` array listing which agent files were installed. Standard package entries are unaffected.
 
 **`.claude/rules/toolkit.md`** — assembled rules file; sections tagged per package
 ```

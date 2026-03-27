@@ -225,6 +225,281 @@ function suggestSimilar(name, packages, maxDistance = 3) {
 }
 
 // ---------------------------------------------------------------------------
+// Agent catalog helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse YAML frontmatter from a markdown file.
+ * Handles quoted and unquoted values. Returns {} if no frontmatter found.
+ */
+function parseFrontmatter(content) {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return {};
+  const result = {};
+  for (const line of match[1].split('\n')) {
+    const colonIdx = line.indexOf(':');
+    if (colonIdx === -1) continue;
+    const key = line.slice(0, colonIdx).trim();
+    const val = line.slice(colonIdx + 1).trim().replace(/^["']|["']$/g, '');
+    if (key) result[key] = val;
+  }
+  return result;
+}
+
+/**
+ * Scan a single category directory and return a category object, or null if empty.
+ * @param {string} categoryDir - Absolute path to the category folder
+ * @param {string} categoryName - Display name (folder name)
+ * @param {boolean} isCustom - True for my-agents entries (shown first, tagged [custom])
+ */
+function scanCategory(categoryDir, categoryName, isCustom) {
+  if (!fs.existsSync(categoryDir)) return null;
+  const files = fs.readdirSync(categoryDir).filter((f) => f.endsWith('.md'));
+  if (files.length === 0) return null;
+
+  const agents = files.map((filename) => {
+    const raw = fs.readFileSync(path.join(categoryDir, filename), 'utf-8');
+    const meta = parseFrontmatter(raw);
+    return {
+      filename,
+      name: meta.name || filename.replace('.md', ''),
+      description: meta.description || '',
+      emoji: meta.emoji || '',
+      category: categoryName,
+      sourcePath: path.join(categoryDir, filename),
+      isCustom,
+    };
+  });
+
+  return { name: categoryName, agents, isCustom };
+}
+
+/**
+ * Scan the full agent catalog from a package directory.
+ * Reads my-agents/ (custom) first, then source/ categories alphabetically.
+ * Skips the scripts/ folder and any dot-folders inside source/.
+ * @param {string} pkgDir - Absolute path to the agents package directory
+ * @returns {Array} Array of category objects: { name, agents[], isCustom }
+ */
+function scanAgentCatalog(pkgDir) {
+  const categories = [];
+
+  // my-agents/ - user custom agents, shown first
+  const myAgentsDir = path.join(pkgDir, 'my-agents');
+  if (fs.existsSync(myAgentsDir)) {
+    const entries = fs.readdirSync(myAgentsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+      const cat = scanCategory(path.join(myAgentsDir, entry.name), entry.name, true);
+      if (cat) categories.push(cat);
+    }
+  }
+
+  // source/ - embedded agency-agents repo
+  const sourceDir = path.join(pkgDir, 'source');
+  if (fs.existsSync(sourceDir)) {
+    const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
+    const sorted = entries
+      .filter((e) => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'scripts')
+      .sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of sorted) {
+      const cat = scanCategory(path.join(sourceDir, entry.name), entry.name, false);
+      if (cat) categories.push(cat);
+    }
+  }
+
+  return categories;
+}
+
+/**
+ * Parse a selection string like "1,3,5-7" into an array of 0-based indices.
+ * Invalid entries and out-of-range numbers are silently ignored.
+ */
+function parseSelection(input, max) {
+  const indices = new Set();
+  for (const part of input.split(',')) {
+    const trimmed = part.trim();
+    if (trimmed.includes('-')) {
+      const [a, b] = trimmed.split('-').map((s) => parseInt(s.trim(), 10));
+      if (!isNaN(a) && !isNaN(b)) {
+        for (let i = Math.max(1, a); i <= Math.min(max, b); i++) indices.add(i - 1);
+      }
+    } else {
+      const n = parseInt(trimmed, 10);
+      if (!isNaN(n) && n >= 1 && n <= max) indices.add(n - 1);
+    }
+  }
+  return [...indices].sort((a, b) => a - b);
+}
+
+/**
+ * Prompt the user to select a category from the catalog.
+ * Custom categories are shown with a [custom] tag.
+ * Returns the chosen category object.
+ */
+function promptCategorySelect(categories) {
+  return new Promise((resolve) => {
+    console.log(color.bold('\nAgent Categories:\n'));
+    const numWidth = String(categories.length).length;
+    const nameWidth = Math.max(...categories.map((c) => c.name.length));
+    categories.forEach((cat, i) => {
+      const tag = cat.isCustom ? color.green(' [custom]') : '';
+      const count = color.dim(cat.agents.length + ' agent' + (cat.agents.length === 1 ? '' : 's'));
+      console.log(
+        `  ${color.cyan((i + 1).toString().padStart(numWidth))}  ${cat.name.padEnd(nameWidth)}  ${count}${tag}`
+      );
+    });
+    console.log();
+
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(`Select category (1-${categories.length}): `, (answer) => {
+      rl.close();
+      const n = parseInt(answer.trim(), 10);
+      if (isNaN(n) || n < 1 || n > categories.length) {
+        console.error(color.red('Invalid selection.'));
+        process.exit(1);
+      }
+      resolve(categories[n - 1]);
+    });
+  });
+}
+
+/**
+ * Prompt the user to select agents within a category.
+ * Supports comma/range selection (e.g. "1,3,5-7") or "all" (requires confirmation).
+ * Returns an array of selected agent objects.
+ */
+function promptAgentSelect(agents, categoryName) {
+  return new Promise((resolve) => {
+    console.log(color.bold(`\n${categoryName}:\n`));
+    const numWidth = String(agents.length).length;
+    const nameWidth = Math.max(...agents.map((a) => a.name.length));
+    agents.forEach((agent, i) => {
+      const emoji = agent.emoji ? agent.emoji + ' ' : '';
+      const truncDesc = agent.description.length > 55
+        ? agent.description.slice(0, 52) + '...'
+        : agent.description;
+      const desc = truncDesc ? color.dim('  ' + truncDesc) : '';
+      console.log(
+        `  ${color.cyan((i + 1).toString().padStart(numWidth))}  ${emoji}${agent.name.padEnd(nameWidth)}${desc}`
+      );
+    });
+    console.log();
+
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(`Select agents (e.g. 1,3,5-7 or 'all'): `, (answer) => {
+      rl.close();
+      const trimmed = answer.trim().toLowerCase();
+
+      if (trimmed === 'all') {
+        // Require explicit confirmation before installing all
+        const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout });
+        rl2.question(
+          `  Confirm: install all ${color.yellow(agents.length)} agents from "${categoryName}"? [y/N]: `,
+          (confirm) => {
+            rl2.close();
+            if (confirm.trim().toLowerCase() === 'y') {
+              resolve(agents);
+            } else {
+              console.log(color.dim('  Cancelled.'));
+              resolve([]);
+            }
+          }
+        );
+        return;
+      }
+
+      const indices = parseSelection(trimmed, agents.length);
+      if (indices.length === 0) {
+        console.error(color.red('No valid selections.'));
+        process.exit(1);
+      }
+      resolve(indices.map((i) => agents[i]));
+    });
+  });
+}
+
+/**
+ * Install agents from the catalog into .claude/agents/ in the target project.
+ * When directAgentName is provided, skips the interactive selector.
+ * Tracks installed filenames in the lock file under installed.agents.files[].
+ *
+ * TODO: per-tool destination config - .claude/agents/ is hardcoded for Claude Code.
+ * In future, a tool config could route agents to Cursor (.cursor/rules/), Codex, etc.
+ *
+ * @param {object} pkgMeta - Parsed plib.json for the agents package
+ * @param {string} pkgDir  - Absolute path to the agents package directory
+ * @param {string} cwd     - Target project directory
+ * @param {string|null} directAgentName - Filename to install directly, or null for selector
+ */
+async function cmdInstallAgents(pkgMeta, pkgDir, cwd, directAgentName) {
+  const destDir = path.join(cwd, '.claude', 'agents');
+  const categories = scanAgentCatalog(pkgDir);
+
+  if (categories.length === 0) {
+    console.error(color.red('No agents found in catalog.'));
+    console.error(color.dim(`Looked in: ${pkgDir}`));
+    process.exit(1);
+  }
+
+  let toInstall = [];
+
+  if (directAgentName) {
+    // Direct install - search all categories for the named file
+    const name = directAgentName.endsWith('.md') ? directAgentName : directAgentName + '.md';
+    for (const cat of categories) {
+      const found = cat.agents.find((a) => a.filename === name);
+      if (found) { toInstall = [found]; break; }
+    }
+    if (toInstall.length === 0) {
+      console.error(color.red(`Agent "${directAgentName}" not found in catalog.`));
+      process.exit(1);
+    }
+  } else {
+    // Interactive flow: pick category, then pick agents
+    const category = await promptCategorySelect(categories);
+    toInstall = await promptAgentSelect(category.agents, category.name);
+  }
+
+  if (toInstall.length === 0) {
+    console.log(color.dim('\nNo agents selected.'));
+    return;
+  }
+
+  console.log();
+  const installedFiles = [];
+  for (const agent of toInstall) {
+    const dest = path.join(destDir, agent.filename);
+    const written = await copyFileWithConflict(agent.sourcePath, dest, 'agents');
+    if (written) {
+      console.log(`  ${color.green('✓')} ${agent.filename}`);
+      installedFiles.push(agent.filename);
+    }
+  }
+
+  if (installedFiles.length === 0) {
+    console.log(color.dim('\nNo agents installed (all skipped).'));
+    return;
+  }
+
+  // Update lock file - merge with any previously installed agent files
+  const sourcePath = resolveSourcePath();
+  let lock = loadLockFile(cwd) || { source: sourcePath, installed: {} };
+  lock.source = sourcePath;
+  const prev = lock.installed['agents'] || { version: pkgMeta.version, files: [] };
+  const fileSet = new Set(prev.files || []);
+  for (const f of installedFiles) fileSet.add(f);
+  lock.installed['agents'] = {
+    version: pkgMeta.version,
+    installedAt: new Date().toISOString().slice(0, 10),
+    files: [...fileSet].sort(),
+  };
+  saveLockFile(cwd, lock);
+
+  console.log(color.dim(`\n${installedFiles.length} agent(s) installed to .claude/agents/`));
+}
+
+// ---------------------------------------------------------------------------
 // Registry helpers
 // ---------------------------------------------------------------------------
 
@@ -409,7 +684,7 @@ function cmdStatus() {
 // Command: install <package>
 // ---------------------------------------------------------------------------
 
-async function installPackage(packageName, sourcePath, registry, cwd) {
+async function installPackage(packageName, sourcePath, registry, cwd, extraArgs = []) {
   const entry = findPackage(registry, packageName);
   if (!entry) {
     console.error(color.red(`Error: Package "${packageName}" not found in registry.`));
@@ -429,6 +704,13 @@ async function installPackage(packageName, sourcePath, registry, cwd) {
   }
 
   const pkgMeta = readJSON(plibJsonPath);
+
+  // --- Agent catalog: delegate to interactive installer ---
+  if (pkgMeta.type === 'agent-catalog') {
+    await cmdInstallAgents(pkgMeta, pkgDir, cwd, extraArgs[0] || null);
+    return;
+  }
+
   const summary = { commands: 0, scripts: 0, templates: 0, rules: false };
 
   // --- Copy commands ---
@@ -600,7 +882,8 @@ async function cmdInstall(args) {
   }
 
   console.log(color.bold(`Installing ${color.cyan(packageName)}${pinnedVersion ? color.yellow('@' + pinnedVersion) : ''}...\n`));
-  await installPackage(packageName, sourcePath, registry, cwd);
+  // Pass remaining args (after the package name) so agent-catalog can receive a direct agent name
+  await installPackage(packageName, sourcePath, registry, cwd, args.slice(1));
   console.log(color.dim('\nDone.'));
 }
 
@@ -684,6 +967,39 @@ function cmdRemove(args) {
   }
 
   const pkgMeta = readJSON(plibJsonPath);
+
+  // --- Agent catalog: remove only the tracked agent files ---
+  if (pkgMeta.type === 'agent-catalog') {
+    const installedFiles = (lock.installed[packageName] || {}).files || [];
+    const agentDestDir = path.join(cwd, '.claude', 'agents');
+    let removed = 0;
+
+    console.log(color.bold(`Removing ${color.cyan(packageName)}...\n`));
+
+    for (const filename of installedFiles) {
+      const fp = path.join(agentDestDir, filename);
+      if (fs.existsSync(fp)) {
+        fs.unlinkSync(fp);
+        console.log(`  ${color.green('✓')} removed ${filename}`);
+        removed++;
+      }
+    }
+
+    delete lock.installed[packageName];
+    if (Object.keys(lock.installed).length === 0) {
+      deleteLockFile(cwd);
+      console.log(color.dim('  No packages remain — removed .plib-lock.json'));
+    } else {
+      saveLockFile(cwd, lock);
+    }
+
+    console.log(
+      `\n  ${color.green('✓')} ${color.cyan(packageName)} — removed ${removed} agent file(s)`
+    );
+    console.log(color.dim('\nDone.'));
+    return;
+  }
+
   const summary = { commands: 0, scripts: 0, templates: 0, rules: false };
 
   console.log(color.bold(`Removing ${color.cyan(packageName)}...\n`));

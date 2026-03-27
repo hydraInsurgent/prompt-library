@@ -32,9 +32,11 @@ Future features - not yet started.
 | # | Title | Priority | Notes |
 |---|-------|----------|-------|
 | - | Automated test suite for CLI | Medium | Manual testing only right now |
+| - | Per-tool agent/command destinations | Medium | `plib install agent` and `plib install command` as separate subcommands with per-tool config (Cursor, Codex, Windsurf). Currently hardcoded to `.claude/agents/` and `.claude/commands/` |
 | - | Remote registry support | Low | Install packages from a URL, not just local path |
 | - | Cross-package dependency declarations | Low | Packages declaring deps on other packages |
 | - | Dry-run mode (`--force`, `--skip-all`) | Low | Batch conflict resolution flags |
+| - | Security audit for third-party package installation | High | Verify CLI doesn't execute harmful code when installing prompts/files that could leak data or compromise system security |
 
 ---
 
