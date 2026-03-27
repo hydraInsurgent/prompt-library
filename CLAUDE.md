@@ -55,7 +55,23 @@ Examples:
 cli: <what changed>
 ```
 
-**When modifying project-level files** (registry, profiles, docs, specs):
+**When modifying docs** (docs/, README, specs):
+```
+docs: <what changed>
+```
+Examples:
+- `docs: scaffold architecture and backlog`
+- `docs: update engineering guidelines with commit conventions`
+
+**When doing housekeeping** (installs, config, tooling, lock files):
+```
+chore: <what changed>
+```
+Examples:
+- `chore: install core-workflow and bug-workflow packages`
+- `chore: add .plib-lock.json`
+
+**When modifying project-level files** (registry, profiles):
 ```
 <what changed>
 ```
