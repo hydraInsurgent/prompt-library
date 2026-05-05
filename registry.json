@@ -2,22 +2,10 @@
   "version": "1",
   "packages": [
     {
-      "name": "core-workflow",
+      "name": "agents",
       "version": "1.0.0",
-      "description": "Main development lifecycle - ideation, project setup, feature planning, execution, testing, documentation, and shipping",
-      "path": "packages/core-workflow"
-    },
-    {
-      "name": "review-suite",
-      "version": "1.0.0",
-      "description": "Code, UX, plan, browser, and command reviews with severity-rated findings and staff-level checks",
-      "path": "packages/review-suite"
-    },
-    {
-      "name": "debate",
-      "version": "1.0.0",
-      "description": "Multi-model AI peer review debates with ChatGPT and Gemini, plus peer-review evaluation",
-      "path": "packages/debate"
+      "description": "AI agent catalog - interactive selector for 150+ specialist agents across 17 categories",
+      "path": "packages/agents"
     },
     {
       "name": "bug-workflow",
@@ -26,10 +14,10 @@
       "path": "packages/bug-workflow"
     },
     {
-      "name": "utilities",
+      "name": "core-workflow",
       "version": "1.0.0",
-      "description": "Parallel worktrees, learning mode, package review for external codebases, and UI specification generation",
-      "path": "packages/utilities"
+      "description": "Main development lifecycle - ideation, project setup, feature planning, execution, testing, documentation, and shipping",
+      "path": "packages/core-workflow"
     },
     {
       "name": "daily-builds",
@@ -38,10 +26,22 @@
       "path": "packages/daily-builds"
     },
     {
-      "name": "agents",
+      "name": "debate",
       "version": "1.0.0",
-      "description": "AI agent catalog - interactive selector for 150+ specialist agents across 17 categories",
-      "path": "packages/agents"
+      "description": "Multi-model AI peer review debates with ChatGPT and Gemini, plus peer-review evaluation",
+      "path": "packages/debate"
+    },
+    {
+      "name": "review-suite",
+      "version": "1.0.0",
+      "description": "Code, UX, plan, browser, and command reviews with severity-rated findings and staff-level checks",
+      "path": "packages/review-suite"
+    },
+    {
+      "name": "utilities",
+      "version": "1.0.0",
+      "description": "Parallel worktrees, learning mode, package review for external codebases, and UI specification generation",
+      "path": "packages/utilities"
     }
   ]
 }

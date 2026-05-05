@@ -13,6 +13,8 @@ A CLI tool for installing curated packages of Claude Code commands, rules, scrip
 
 The library itself is also a curated collection of those packages — a growing set of opinionated workflows for how to work with Claude Code effectively.
 
+It also acts as a **consumer registry**. The `projects/` folder tracks every project that subscribes to the library (or is mined for ideas). Each tracked project gets a snapshot - description, manifest, `CLAUDE.md`, `toolkit.md`, and any divergent commands as `overrides/`. Drift between a project and the library is visible without filesystem scans, and good ideas evolved in a project can be upstreamed back into a package.
+
 ---
 
 ## The User
@@ -60,3 +62,12 @@ A profile is a JSON file in `profiles/` listing package names. `plib install --p
 
 ### Update
 `plib update` compares installed versions in `.plib-lock.json` against `registry.json` and re-installs packages where the registry version is newer.
+
+### Snapshot a project
+`plib snapshot <project-path>` copies the project's `CLAUDE.md`, `toolkit.md`, and `.claude/commands/*.md` into `projects/<name>/` inside the library, plus a manifest with the project's subscription info (read from its `.plib-lock.json` if present). Used to track consumer projects in the registry.
+
+### Detect drift
+`plib detect-drift <project-path>` compares a snapshot against the subscribed packages. Files matching the library exactly are removed from the snapshot (pristine); files that differ are flagged in the manifest's `modified[]`; files not in any subscribed package are recorded as `overrides[]`. Whitespace-only differences are ignored.
+
+### Build registry
+`plib build-registry` rebuilds `registry.json` from every `packages/*/plib.json`. The registry is a generated artifact - bumping a package version is a single edit in its `plib.json`, then run this.

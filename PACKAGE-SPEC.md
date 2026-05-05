@@ -119,3 +119,52 @@ Written to the target project root on install. Tracks what is installed.
 | `installed[name].version` | string | Version that was installed |
 | `installed[name].installedAt` | string | ISO date of installation |
 | `installed[name].files` | string[] | (agent-catalog only) Filenames installed to `.claude/agents/`. Not present for standard packages. |
+
+## projects/<name>/manifest.json (consumer registry)
+
+Each consumer project tracked in `projects/<name>/` has a `manifest.json` describing what the project subscribes to and which commands have drifted.
+
+```json
+{
+  "project": "tasklog",
+  "path": "/home/manu/Personal/Code/Depth Projects/Tasklog",
+  "snapshotted": "2026-05-05",
+  "external": false,
+  "subscribed": {
+    "core-workflow": "2.0.0",
+    "docs-workflow": "1.0.0",
+    "debate": "1.0.0",
+    "bug-workflow": "1.0.0",
+    "utilities": "1.0.0"
+  },
+  "modified": [
+    "core-workflow/explore.md",
+    "docs-workflow/document.md"
+  ],
+  "overrides": [
+    "ui-spec.md"
+  ]
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `project` | string | yes | Snapshot name (matches the folder name under `projects/`) |
+| `path` | string | yes | Absolute path to the project on disk |
+| `snapshotted` | string | yes | ISO date the snapshot was last refreshed |
+| `external` | boolean | no | `true` for read-only / scan-only projects (e.g. friend's repos). `plib install` is never run against these |
+| `subscribed` | object | no | Map of package name to version the project is subscribed to. Mirrors `.plib-lock.json` for formal consumers |
+| `modified` | string[] | no | Command paths (relative to package) whose checksum differs from the package source. Populated by `plib detect-drift` |
+| `overrides` | string[] | no | Project-specific commands not present in any subscribed package; copied into `projects/<name>/overrides/` |
+
+### Layout of a project snapshot
+
+```
+projects/<name>/
+├── <name>.md           # Description: path, what it is, workflows used, current state
+├── manifest.json       # Schema above
+├── CLAUDE.md           # Snapshot of the project's CLAUDE.md (if any)
+├── toolkit.md          # Snapshot of the project's .claude/rules/toolkit.md (if any)
+└── overrides/          # Project-specific commands not in any package
+    └── *.md
+```

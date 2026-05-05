@@ -18,12 +18,13 @@ The CLI is a thin file-copying tool. All meaningful logic lives in the packages 
 
 ### Current Patterns
 
-- Single file, zero npm dependencies — only `fs`, `path`, `readline` from Node built-ins
+- Single file, zero npm dependencies — only `fs`, `path`, `readline`, `crypto` from Node built-ins
 - All subcommands implemented as functions in the same file
-- `registry.json` is the only source of truth for package discovery — never scan `packages/` directly
+- `registry.json` is the only source of truth for package discovery at *runtime* — `plib list`, `plib install`, etc. read from it. The registry itself is a *generated artifact*: `plib build-registry` scans `packages/*/plib.json` and writes it. Don't hand-edit `registry.json`
 - Conflict resolution prompts the user with four options: replace, skip, rename, append
 - Comment syntax for append separators is file-extension-aware (`.js` → `//`, `.md` → `<!-- -->`, `.py` → `#`, etc.)
 - Rules sections in `toolkit.md` are tagged: `<!-- [name vX.Y.Z] -->` ... `<!-- [/name] -->` for clean assembly and removal
+- **Scanning external project directories** (`plib snapshot`, `plib detect-drift`) reads from a project path *outside* this repo into `projects/<name>/`. These commands never write into the project being scanned - the project remains the user's source of truth. Drift is one-way readout into the library; pushing back is still manual
 
 ### Patterns Not Yet In Use
 
@@ -48,7 +49,8 @@ The CLI is a thin file-copying tool. All meaningful logic lives in the packages 
 - Read `PACKAGE-SPEC.md` for the full schema
 - Read `CONTRIBUTING.md` for the step-by-step guide and common mistakes
 - Test with `plib install <package>` in a throwaway directory before committing
-- Bump version in both `plib.json` and `registry.json` when releasing changes
+- Bump the version in `plib.json`, then run `plib build-registry` to regenerate `registry.json`
+- Command file basenames must be unique library-wide (`document.md` cannot live in two packages). Folder-scoped names like `lab/concept.md` aren't supported yet
 
 ---
 
@@ -57,7 +59,6 @@ The CLI is a thin file-copying tool. All meaningful logic lives in the packages 
 | Issue | What's Not Yet In Place |
 |-------|------------------------|
 | No automated tests | CLI behavior is tested manually; no test suite exists yet |
-| Manual version sync | `plib.json` and `registry.json` versions must be kept in sync by hand |
 
 ---
 

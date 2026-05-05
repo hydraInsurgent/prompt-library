@@ -22,6 +22,7 @@ What is currently being planned or built:
 | Plan file | Issue | Branch | Status |
 |-----------|-------|--------|--------|
 | docs/plans/PL-P1-agents-package.md | #1 | feature/agents-package-#1 | In Progress |
+| docs/plans/PL-P2-library-sync-and-project-registry.md | #2 | feature/library-sync-and-project-registry-#2 | In Progress |
 
 ---
 

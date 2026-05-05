@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const crypto = require('crypto');
 
 // ---------------------------------------------------------------------------
 // ANSI color helpers
@@ -1170,6 +1171,13 @@ ${color.bold('Usage:')}
   plib update [package]              Update installed package(s) to latest
   plib init                          Scaffold a new package in current directory
 
+${color.bold('Library maintenance:')}
+  plib snapshot <path> [--name X]    Snapshot a project into projects/<name>/
+                                     [--external] marks it as read-only
+  plib detect-drift <path>           Compare a snapshot against the library;
+                                     classify modified vs. override commands
+  plib build-registry                Rebuild registry.json from packages/*/plib.json
+
 ${color.bold('Options:')}
   --help, -h                         Show this help message
 
@@ -1177,6 +1185,401 @@ ${color.bold('Environment:')}
   PLIB_HOME                          Path to the prompt-library repo
                                      (defaults to the CLI script's parent directory)
 `);
+}
+
+// ---------------------------------------------------------------------------
+// Project snapshot helpers (consumer registry)
+// ---------------------------------------------------------------------------
+
+const PROJECTS_DIR = 'projects';
+
+/** kebab-case a free-form name for use as a folder slug. */
+function slugify(s) {
+  return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+/**
+ * Pick the snapshot folder name for a project.
+ * Default = slugified basename. On collision with a different project, fall back to parent-prefix.
+ * Honors an explicit override.
+ */
+function chooseSnapshotName(projectPath, projectsDir, nameOverride) {
+  if (nameOverride) return slugify(nameOverride);
+
+  const abs = path.resolve(projectPath);
+  const segments = abs.split(path.sep).filter(Boolean);
+  const basename = segments[segments.length - 1];
+  const parent = segments[segments.length - 2] || '';
+  const baseSlug = slugify(basename);
+  const baseTarget = path.join(projectsDir, baseSlug);
+
+  // No collision - use the plain name
+  if (!fs.existsSync(baseTarget)) return baseSlug;
+
+  // Collision - check if it's the same project being refreshed
+  const manifestPath = path.join(baseTarget, 'manifest.json');
+  if (fs.existsSync(manifestPath)) {
+    try {
+      const m = readJSON(manifestPath);
+      if (m.path && path.resolve(m.path) === abs) return baseSlug;
+    } catch (e) { /* fall through to prefix */ }
+  }
+
+  // Different project - parent-prefix
+  return slugify(`${parent}-${basename}`);
+}
+
+/** Canonicalize file content for whitespace-insensitive comparison. */
+function canonicalizeContent(text) {
+  return String(text)
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/\s+$/, ''))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/** Short hex digest of canonicalized content. */
+function checksumContent(text) {
+  return crypto.createHash('sha256').update(canonicalizeContent(text)).digest('hex').slice(0, 16);
+}
+
+/** Locate the most likely CLAUDE.md inside a project (root preferred, then .claude/). */
+function findProjectClaudeMd(projectPath) {
+  const candidates = [
+    path.join(projectPath, 'CLAUDE.md'),
+    path.join(projectPath, '.claude', 'CLAUDE.md'),
+  ];
+  return candidates.find((p) => fs.existsSync(p)) || null;
+}
+
+/** Locate the project's toolkit.md (.claude/rules/toolkit.md or .claude/rules.md). */
+function findProjectToolkitMd(projectPath) {
+  const candidates = [
+    path.join(projectPath, '.claude', 'rules', 'toolkit.md'),
+    path.join(projectPath, '.claude', 'rules.md'),
+  ];
+  return candidates.find((p) => fs.existsSync(p)) || null;
+}
+
+/** Read .plib-lock.json from a project, or return null if absent. */
+function readProjectLock(projectPath) {
+  const lockPath = path.join(projectPath, LOCK_FILE);
+  if (!fs.existsSync(lockPath)) return null;
+  try { return readJSON(lockPath); } catch (e) { return null; }
+}
+
+/** Find a snapshot folder by matching the absolute project path against existing manifests. */
+function findSnapshotByProjectPath(projectsDir, absProjectPath) {
+  if (!fs.existsSync(projectsDir)) return null;
+  const entries = fs.readdirSync(projectsDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const manifestPath = path.join(projectsDir, entry.name, 'manifest.json');
+    if (!fs.existsSync(manifestPath)) continue;
+    try {
+      const m = readJSON(manifestPath);
+      if (m.path && path.resolve(m.path) === absProjectPath) {
+        return { name: entry.name, dir: path.join(projectsDir, entry.name), manifest: m };
+      }
+    } catch (e) { /* skip malformed */ }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Command: snapshot <project-path> [--name <override>] [--external]
+// ---------------------------------------------------------------------------
+
+function cmdSnapshot(args) {
+  const positional = args.filter((a) => !a.startsWith('--') && !args[args.indexOf(a) - 1]?.startsWith('--name'));
+  const projectPath = args.find((a) => !a.startsWith('--'));
+
+  if (!projectPath) {
+    console.error(color.red('Error: snapshot requires a project path.'));
+    console.error('Usage: plib snapshot <project-path> [--name <override>] [--external]');
+    process.exit(1);
+  }
+
+  const abs = path.resolve(projectPath);
+  if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) {
+    console.error(color.red(`Error: "${abs}" is not a directory.`));
+    process.exit(1);
+  }
+
+  const sourcePath = resolveSourcePath();
+  const projectsDir = path.join(sourcePath, PROJECTS_DIR);
+  ensureDir(projectsDir);
+
+  const nameIdx = args.indexOf('--name');
+  const nameOverride = nameIdx !== -1 ? args[nameIdx + 1] : null;
+  const isExternal = args.includes('--external');
+
+  const snapshotName = chooseSnapshotName(abs, projectsDir, nameOverride);
+  const snapshotDir = path.join(projectsDir, snapshotName);
+  ensureDir(snapshotDir);
+
+  console.log(color.bold(`Snapshotting ${color.cyan(snapshotName)} from ${color.dim(abs)}\n`));
+
+  // --- Copy CLAUDE.md ---
+  const claudeMd = findProjectClaudeMd(abs);
+  if (claudeMd) {
+    copyFile(claudeMd, path.join(snapshotDir, 'CLAUDE.md'));
+    console.log(`  ${color.green('✓')} CLAUDE.md`);
+  }
+
+  // --- Copy toolkit.md ---
+  const toolkitMd = findProjectToolkitMd(abs);
+  if (toolkitMd) {
+    copyFile(toolkitMd, path.join(snapshotDir, 'toolkit.md'));
+    console.log(`  ${color.green('✓')} toolkit.md`);
+  }
+
+  // --- Copy commands into overrides/ (drift-detect classifies them later) ---
+  const projectCmdDir = path.join(abs, '.claude', 'commands');
+  const overridesDir = path.join(snapshotDir, 'overrides');
+  let cmdCount = 0;
+  if (fs.existsSync(projectCmdDir)) {
+    // Clear existing overrides/ to avoid stale files (snapshot is point-in-time)
+    if (fs.existsSync(overridesDir)) {
+      for (const f of fs.readdirSync(overridesDir)) {
+        const fp = path.join(overridesDir, f);
+        if (fs.statSync(fp).isFile()) fs.unlinkSync(fp);
+      }
+    }
+    ensureDir(overridesDir);
+    const files = fs.readdirSync(projectCmdDir).filter((f) => f.endsWith('.md'));
+    for (const f of files) {
+      copyFile(path.join(projectCmdDir, f), path.join(overridesDir, f));
+      cmdCount++;
+    }
+  }
+  if (cmdCount > 0) console.log(`  ${color.green('✓')} ${cmdCount} command(s) -> overrides/`);
+
+  // --- Read project lock (if any) for subscription info ---
+  const projectLock = readProjectLock(abs);
+  const subscribed = {};
+  if (projectLock && projectLock.installed) {
+    for (const [pkg, info] of Object.entries(projectLock.installed)) {
+      subscribed[pkg] = info.version;
+    }
+  }
+
+  // --- Write manifest (preserve fields we don't manage on snapshot) ---
+  const manifestPath = path.join(snapshotDir, 'manifest.json');
+  let manifest = {};
+  if (fs.existsSync(manifestPath)) {
+    try { manifest = readJSON(manifestPath); } catch (e) { manifest = {}; }
+  }
+  manifest.project = snapshotName;
+  manifest.path = abs;
+  manifest.snapshotted = new Date().toISOString().slice(0, 10);
+  if (isExternal) manifest.external = true;
+  if (Object.keys(subscribed).length > 0) manifest.subscribed = subscribed;
+  // modified[] and overrides[] are populated by detect-drift; preserve if present
+  manifest.modified = manifest.modified || [];
+  manifest.overrides = manifest.overrides || [];
+  writeJSON(manifestPath, manifest);
+  console.log(`  ${color.green('✓')} manifest.json`);
+
+  // --- Create stub description if missing ---
+  const descPath = path.join(snapshotDir, `${snapshotName}.md`);
+  if (!fs.existsSync(descPath)) {
+    const stub = [
+      `# ${snapshotName}`,
+      '',
+      `**Path:** \`${abs}\``,
+      `**Snapshotted:** ${manifest.snapshotted}`,
+      manifest.external ? '**Status:** external / read-only' : '',
+      '',
+      '## What this project is',
+      '',
+      '<!-- Fill in: one-paragraph description of the project. -->',
+      '',
+      '## Workflows used',
+      '',
+      '<!-- Fill in: which packages from the library, plus any project-specific workflows. -->',
+      '',
+      '## Current state',
+      '',
+      '<!-- Fill in: active / wip / stale; what is in flight. -->',
+      '',
+    ].filter((l) => l !== '').join('\n');
+    fs.writeFileSync(descPath, stub.trimStart() + '\n', 'utf-8');
+    console.log(`  ${color.green('✓')} ${snapshotName}.md (stub)`);
+  }
+
+  console.log(color.dim(`\nDone. Snapshot at ${path.relative(process.cwd(), snapshotDir)}/`));
+  if (Object.keys(subscribed).length > 0) {
+    console.log(color.dim(`Run \`plib detect-drift ${path.relative(process.cwd(), abs)}\` to classify modifications and overrides.`));
+  } else if (cmdCount > 0) {
+    console.log(color.dim(`No .plib-lock.json in project - all ${cmdCount} command(s) are currently in overrides/. Install packages or set subscriptions to classify.`));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Command: detect-drift <project-path>
+// ---------------------------------------------------------------------------
+
+function cmdDetectDrift(args) {
+  const projectPath = args.find((a) => !a.startsWith('--'));
+  if (!projectPath) {
+    console.error(color.red('Error: detect-drift requires a project path.'));
+    console.error('Usage: plib detect-drift <project-path>');
+    process.exit(1);
+  }
+
+  const abs = path.resolve(projectPath);
+  const sourcePath = resolveSourcePath();
+  const projectsDir = path.join(sourcePath, PROJECTS_DIR);
+
+  // Locate snapshot by matching path in manifests (path is authoritative)
+  const found = findSnapshotByProjectPath(projectsDir, abs);
+  if (!found) {
+    console.error(color.red(`Error: No snapshot found for ${abs}.`));
+    console.error(color.dim(`Run \`plib snapshot ${path.relative(process.cwd(), abs)}\` first.`));
+    process.exit(1);
+  }
+
+  const { name: snapshotName, dir: snapshotDir, manifest } = found;
+  const overridesDir = path.join(snapshotDir, 'overrides');
+  const subscribed = manifest.subscribed || {};
+
+  console.log(color.bold(`Detecting drift for ${color.cyan(snapshotName)}\n`));
+
+  if (Object.keys(subscribed).length === 0) {
+    console.log(color.dim('  No subscribed packages in manifest. Nothing to compare against.'));
+    console.log(color.dim('  Install packages in the project (creates .plib-lock.json) and re-snapshot.'));
+    return;
+  }
+
+  if (!fs.existsSync(overridesDir)) {
+    console.log(color.dim('  No overrides/ folder. Snapshot may be empty.'));
+    return;
+  }
+
+  const registry = loadRegistry(sourcePath);
+  const overrideFiles = new Set(fs.readdirSync(overridesDir).filter((f) => f.endsWith('.md')));
+  const modified = [];
+  const matched = new Set(); // filenames matched by some subscribed package
+  let pristineRemoved = 0;
+
+  for (const [pkgName, version] of Object.entries(subscribed)) {
+    const entry = findPackage(registry, pkgName);
+    if (!entry) {
+      console.warn(color.yellow(`  Skipping "${pkgName}" - not in registry.`));
+      continue;
+    }
+    const pkgDir = path.join(sourcePath, entry.path);
+    const plibJsonPath = path.join(pkgDir, 'plib.json');
+    if (!fs.existsSync(plibJsonPath)) continue;
+    const pkgMeta = readJSON(plibJsonPath);
+    const pkgCommands = pkgMeta.commands || [];
+
+    for (const cmd of pkgCommands) {
+      if (!overrideFiles.has(cmd)) continue; // project doesn't have this command
+      matched.add(cmd);
+      const projectVer = fs.readFileSync(path.join(overridesDir, cmd), 'utf-8');
+      const libraryFile = path.join(pkgDir, 'commands', cmd);
+      if (!fs.existsSync(libraryFile)) continue;
+      const libraryVer = fs.readFileSync(libraryFile, 'utf-8');
+      if (checksumContent(projectVer) === checksumContent(libraryVer)) {
+        // Pristine - safe to drop from snapshot (lives in the package)
+        fs.unlinkSync(path.join(overridesDir, cmd));
+        pristineRemoved++;
+      } else {
+        modified.push(`${pkgName}/${cmd}`);
+      }
+    }
+  }
+
+  // Anything still in overrides/ that wasn't claimed by a subscribed package is a genuine override
+  const stillThere = fs.readdirSync(overridesDir).filter((f) => f.endsWith('.md'));
+  const overrides = stillThere.filter((f) => !modified.some((m) => m.endsWith('/' + f)));
+
+  // Update manifest
+  manifest.modified = modified.sort();
+  manifest.overrides = overrides.sort();
+  writeJSON(path.join(snapshotDir, 'manifest.json'), manifest);
+
+  console.log(`  ${color.green('✓')} pristine (matched library): ${pristineRemoved} file(s) removed from snapshot`);
+  console.log(`  ${color.yellow('!')} modified (in subscribed package, content diverged): ${modified.length}`);
+  for (const m of modified) console.log(`    - ${m}`);
+  console.log(`  ${color.cyan('+')} overrides (not in any subscribed package): ${overrides.length}`);
+  for (const o of overrides) console.log(`    - ${o}`);
+
+  console.log(color.dim(`\nManifest updated: ${path.relative(process.cwd(), path.join(snapshotDir, 'manifest.json'))}`));
+}
+
+// ---------------------------------------------------------------------------
+// Command: build-registry
+// ---------------------------------------------------------------------------
+
+function cmdBuildRegistry() {
+  const sourcePath = resolveSourcePath();
+  const packagesDir = path.join(sourcePath, 'packages');
+  const registryPath = path.join(sourcePath, 'registry.json');
+
+  if (!fs.existsSync(packagesDir)) {
+    console.error(color.red(`Error: ${packagesDir} does not exist.`));
+    process.exit(1);
+  }
+
+  // Preserve existing registry version field if present, else default to "1"
+  let existingVersion = '1';
+  if (fs.existsSync(registryPath)) {
+    try {
+      const existing = readJSON(registryPath);
+      if (existing.version) existingVersion = existing.version;
+    } catch (e) { /* ignore */ }
+  }
+
+  const entries = fs.readdirSync(packagesDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .sort();
+
+  const packages = [];
+  const issues = [];
+
+  for (const dir of entries) {
+    const plibJsonPath = path.join(packagesDir, dir, 'plib.json');
+    if (!fs.existsSync(plibJsonPath)) {
+      issues.push(`${dir}: no plib.json (skipped)`);
+      continue;
+    }
+    let pkg;
+    try {
+      pkg = readJSON(plibJsonPath);
+    } catch (e) {
+      issues.push(`${dir}: invalid JSON (${e.message})`);
+      continue;
+    }
+    if (!pkg.name || !pkg.version) {
+      issues.push(`${dir}: missing name or version`);
+      continue;
+    }
+    packages.push({
+      name: pkg.name,
+      version: pkg.version,
+      description: pkg.description || '',
+      path: `packages/${dir}`,
+    });
+  }
+
+  const registry = { version: existingVersion, packages };
+  writeJSON(registryPath, registry);
+
+  console.log(color.bold(`Built registry.json from ${packages.length} package(s).`));
+  for (const p of packages) {
+    console.log(`  ${color.cyan(p.name.padEnd(20))} ${color.yellow('v' + p.version)}`);
+  }
+  if (issues.length > 0) {
+    console.log(color.yellow('\nIssues:'));
+    for (const issue of issues) console.log(`  ${color.dim('-')} ${issue}`);
+  }
+  console.log(color.dim(`\nWrote ${path.relative(process.cwd(), registryPath)}`));
 }
 
 // ---------------------------------------------------------------------------
@@ -1212,6 +1615,15 @@ async function main() {
       break;
     case 'init':
       cmdInit();
+      break;
+    case 'snapshot':
+      cmdSnapshot(commandArgs);
+      break;
+    case 'detect-drift':
+      cmdDetectDrift(commandArgs);
+      break;
+    case 'build-registry':
+      cmdBuildRegistry();
       break;
     default:
       console.error(color.red(`Unknown command: "${command}"`));
