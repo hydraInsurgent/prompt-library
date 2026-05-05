@@ -48,7 +48,7 @@ Each package contains: `plib.json` (manifest), `commands/` (markdown files), `ru
 Examples:
 - `debate: add timeout option to ask-gpt command`
 - `core-workflow: update execute.md parallel agent rules`
-- `review-suite: fix browse.js screenshot path on Windows`
+- `review-suite: fix browse.js screenshot path resolution`
 
 **When modifying the CLI:**
 ```
